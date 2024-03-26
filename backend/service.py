@@ -10,13 +10,23 @@ from fastapi import FastAPI
 #from backend.categorizer import NeuralSearcher
 from backend.categorizer import NeuralSearcher
 from backend.categorizer import DATA_DIR
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # 允许这个域名的跨域请求
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有方法
+    allow_headers=["*"],  # 允许所有头
+)
 
 #neural_searcher = GoodsCategorizer()
 neural_searcher = NeuralSearcher(collection_name='zalando')
 
-graph_path = os.path.join(DATA_DIR, 'graph_en.json')
+graph_path = os.path.join(DATA_DIR, 'graph.json')
+print(os.path.join(DATA_DIR, 'graph.json'))
 
 
 #@app.get("/api/categorize")
