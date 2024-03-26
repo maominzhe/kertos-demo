@@ -6,7 +6,16 @@ const HomePage = () => {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [datacollection, setDatacollection] = useState({ datasets: [] });
+    // const [datacollection, setDatacollection] = useState({ datasets: [] });
+    const [datacollection, setDatacollection] = useState({
+        datasets: [
+            { label: "Regular Data", data: [], backgroundColor: 'rgba(255, 99, 132, 0.5)' }, // 常规数据点
+            { label: "Enlarged Data", data: [], backgroundColor: 'rgba(54, 162, 235, 0.5)' } // 需要放大的数据点
+        ]
+    });
+    
+
+
     
 
     // 示例：加载初始图表数据
@@ -17,8 +26,8 @@ const HomePage = () => {
 
     const loadInitialGraphData = async () => {
         try {
-            // const response = await axios.get("http://localhost:8000/api/graph");
-            setDatacollection({ datasets: [] });
+            const response = await axios.get("http://localhost:8000/api/graph");
+            setDatacollection({ datasets: response.data });
         } catch (error) {
             console.error("Failed to load initial graph data:", error);
         }
@@ -40,7 +49,34 @@ const HomePage = () => {
             });
             // console.log(categorizeResponse.data.result.tags);
             setResults(categorizeResponse.data.result);
-            console.log(results);
+            // updateChartData(categorizeResponse.data.result);
+
+
+            const idsToEnlarge = categorizeResponse.data.result.map(item => item.id);
+
+
+            const updatedDatasets = datacollection.datasets.map(dataPoint => {
+                // 检查该点是否应该被放大
+                if (idsToEnlarge.includes(dataPoint.blog_post_id)) {
+                    console.log(dataPoint);
+                    return { ...dataPoint, r: 30 }; // 放大点的大小
+                    
+                }
+                
+                return dataPoint; // 未被放大的点保持不变
+            });
+
+            
+            setDatacollection({ datasets: updatedDatasets });
+
+            console.log(datacollection.datasets);
+
+    
+    
+            // 设置更新后的图表数据
+    
+            setLoading(false);
+            
 
             // 更新图表数据
             //updateChartData(vec, categorizeResponse.data.result.categories);
@@ -58,11 +94,10 @@ const HomePage = () => {
         return { datasets: [] }; // 返回转换后的数据
     };
 
-    // 根据嵌入向量和分类结果更新图表
-    const updateChartData = () => {
-        // 假设每个分类结果包含 top_category 和其他你需要的字段
-        
-    };
+    
+    
+
+
 
 
     return (
@@ -82,7 +117,7 @@ const HomePage = () => {
                 {results.map((result, index) => (
                     <p key={index}>
                         {/* {result.top_category} / {result.category} */}
-                        {result.title} / {result.top_category}
+                        {result.title}
                     </p>
                 ))}
             </div>

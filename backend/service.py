@@ -6,7 +6,13 @@ from fastapi import FastAPI
 # from goods_categorizer.categorizer import GoodsCategorizer
 # from goods_categorizer.config import DATA_DIR
 
+import sys
 
+# 将项目根目录添加到 sys.path 中
+project_root = '/Users/maomao/VisualStudioProjects/kertos-demo'
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    
 #from backend.categorizer import NeuralSearcher
 from backend.categorizer import NeuralSearcher
 from backend.categorizer import DATA_DIR

@@ -22,7 +22,7 @@ function generateColors(numColors) {
 }
 
 // 使用函数生成30个颜色
-const ChartComponent = () => {
+const ChartComponent = (props) => {
   const [datacollection, setDatacollection] = useState({
     datasets: [],
   });
@@ -75,25 +75,26 @@ const ChartComponent = () => {
         const categoriesDatasets = _.map(groupedCategories, (categories, top_category, index) => {
           // 确保每个类别都有一个唯一的颜色
           if (!categoryToColor[top_category]) {
-            // 分配颜色，并确保颜色是循环的
-            categoryToColor[top_category] = palette[Object.keys(groupedCategories).indexOf(top_category) % palette.length];
+              // 分配颜色，并确保颜色是循环的
+              categoryToColor[top_category] = palette[Object.keys(groupedCategories).indexOf(top_category) % palette.length];
           }
           
-          // 为每个数据集分配背景颜色
           const backgroundColor = categoryToColor[top_category];
           
+          // 假设这里的category已经包含了从props.datacollection传入的r值
           return {
-            label: top_category,
-            data: categories.map(category => ({
-              x: category.vec[0] + (Math.random() * 0.001 - 0.0005),
-              y: category.vec[1] + (Math.random() * 0.001 - 0.0005),
-              r: 5,
-              title: category.title,
-              content_url: category.content_url
-            })),
-            backgroundColor, // 使用映射中的颜色
+              label: top_category,
+              data: categories.map(category => ({
+                  x: category.vec[0] + (Math.random() * 0.001 - 0.0005),
+                  y: category.vec[1] + (Math.random() * 0.001 - 0.0005),
+                  r: 5, // 使用传入的r值而不是硬编码值
+                  title: category.title,
+                  content_url: category.content_url
+              })),
+              backgroundColor,
           };
-        });
+      });
+      
 
         setDatacollection(prevState => ({
           ...prevState,
@@ -107,7 +108,8 @@ const ChartComponent = () => {
     };
 
     loadInitialData();
-  }, []); // 空依赖数组，确保仅在组件挂载时执行
+  }, [props.datacollection]); // 空依赖数组，确保仅在组件挂载时执行
+
 
 
   const options = {
