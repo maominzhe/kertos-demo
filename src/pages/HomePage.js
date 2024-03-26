@@ -1,104 +1,107 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import _ from 'lodash';
 import EmbeddingChart from "../components/EmbeddingChart";
 
 const HomePage = () => {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
-    // const [datacollection, setDatacollection] = useState({ datasets: [] });
-    const [datacollection, setDatacollection] = useState({
-        datasets: [
-            { label: "Regular Data", data: [], backgroundColor: 'rgba(255, 99, 132, 0.5)' }, // 常规数据点
-            { label: "Enlarged Data", data: [], backgroundColor: 'rgba(54, 162, 235, 0.5)' } // 需要放大的数据点
-        ]
-    });
-    
+    // const [datacollection, setDatacollection] = useState({
+    //     datasets: [{
+    //         data: [],
+    //         backgroundColor: 'rgba(255, 99, 132, 0.5)',
+    //     }]
+    // });
 
+    const [datacollection, setDatacollection] = useState({ datasets: [] });
 
-    
+    const palette = [
+        "#db5f57aa", "#db9057aa", "#dbc257aa", "#c3db57aa", "#91db57aa",
+        "#5fdb57aa", "#57db80aa", "#57dbb2aa", "#57d3dbaa", "#57a2dbaa",
+        "#5770dbaa", "#6f57dbaa", "#a157dbaa", "#d357dbaa", "#db57b2aa",
+        "#db5780aa"
+    ];
 
-    // 示例：加载初始图表数据
     useEffect(() => {
-        // 这里可以根据需要请求初始图表数据
         loadInitialGraphData();
     }, []);
 
     const loadInitialGraphData = async () => {
+        setLoading(true);
         try {
             const response = await axios.get("http://localhost:8000/api/graph");
-            setDatacollection({ datasets: response.data });
+            const graphData = response.data;
+            processData(graphData, []); // Initially process without highlighting
         } catch (error) {
             console.error("Failed to load initial graph data:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
     const categorize = async () => {
-        if (!query) return; // 如果查询为空，直接返回
+        if (!query) return;
         setLoading(true);
         try {
-            // 请求嵌入向量
-            const embedResponse = await axios.get("http://localhost:8000/api/embed", {
-                params: { q: query },
-            });
-            const vec = embedResponse.data.result.embedding;
+            const categorizeResponse = await axios.get("http://localhost:8000/api/categorize", { params: { q: query } });
+            const idsToHighlight = categorizeResponse.data.result.map(item => item.id);
 
-            // 请求分类结果
-            const categorizeResponse = await axios.get("http://localhost:8000/api/categorize", {
-                params: { q: query },
-            });
-            // console.log(categorizeResponse.data.result.tags);
+            // Re-fetch or use cached data to process with highlighting
+            const response = await axios.get("http://localhost:8000/api/graph");
+            const graphData = response.data;
+            processData(graphData, idsToHighlight);
+
             setResults(categorizeResponse.data.result);
-            // updateChartData(categorizeResponse.data.result);
-
-
-            const idsToEnlarge = categorizeResponse.data.result.map(item => item.id);
-
-
-            const updatedDatasets = datacollection.datasets.map(dataPoint => {
-                // 检查该点是否应该被放大
-                if (idsToEnlarge.includes(dataPoint.blog_post_id)) {
-                    console.log(dataPoint);
-                    return { ...dataPoint, r: 30 }; // 放大点的大小
-                    
-                }
-                
-                return dataPoint; // 未被放大的点保持不变
-            });
-
-            
-            setDatacollection({ datasets: updatedDatasets });
-
-            console.log(datacollection.datasets);
-
-    
-    
-            // 设置更新后的图表数据
-    
-            setLoading(false);
-            
-
-            // 更新图表数据
-            //updateChartData(vec, categorizeResponse.data.result.categories);
-
-            setLoading(false);
         } catch (error) {
             console.error("Error during categorization:", error);
+        } finally {
             setLoading(false);
         }
     };
 
-    //将API响应转换为图表可用的数据格式
-    const transformGraphData = (graphData) => {
-        // Transform logic here
-        return { datasets: [] }; // 返回转换后的数据
+    const processData = (graphData, idsToHighlight) => {
+        const categoryToColor = {};
+        const categoryDatasets = {}; // 用于存储每个类别的数据点集合
+
+        console.log(idsToHighlight);
+    
+        graphData.forEach(item => {
+            if (!categoryToColor[item.top_category]) {
+                const colorIndex = Object.keys(categoryToColor).length % palette.length;
+                categoryToColor[item.top_category] = palette[colorIndex];
+            }
+    
+            const isHighlighted = idsToHighlight.includes(item.blog_post_id);
+            const dataPoint = {
+                label: item.top_category,
+                x: item.vec[0],
+                y: item.vec[1],
+                r: isHighlighted ? 15 : 5,
+                borderColor: categoryToColor[item.top_category],
+                borderWidth: isHighlighted ? 2 : 0,
+                backgroundColor: isHighlighted ? categoryToColor[item.top_category] : 'rgba(0, 0, 0, 0)',
+                title: item.title,
+                content_url: item.content_url,
+                blog_post_id: item.blog_post_id
+            };
+    
+            // 将数据点分配到对应类别的数据集中
+            if (!categoryDatasets[item.top_category]) {
+                categoryDatasets[item.top_category] = {
+                    label: item.top_category,
+                    data: [],
+                    backgroundColor: categoryToColor[item.top_category],
+                };
+            }
+            categoryDatasets[item.top_category].data.push(dataPoint);
+        });
+    
+        // 将对象转换为数组，因为数据集需要是一个数组
+        const datasets = Object.values(categoryDatasets);
+    
+        setDatacollection({ datasets });
     };
-
-    
-    
-
-
-
 
     return (
         <div>
@@ -113,11 +116,11 @@ const HomePage = () => {
             {loading && <p>Loading...</p>}
             <div>
                 <h3>Results:</h3>
-                {/* 显示分类结果 */}
-                {results.map((result, index) => (
+                {results.map((result, content_url,index) => (
                     <p key={index}>
-                        {/* {result.top_category} / {result.category} */}
+                        <a href={content_url} target="_blank" rel="noopener noreferrer">
                         {result.title}
+                        </a>
                     </p>
                 ))}
             </div>
